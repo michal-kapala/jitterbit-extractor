@@ -17,9 +17,10 @@ type Project struct {
 }
 
 type EntityType struct {
-	XMLName xml.Name 	`xml:"EntityType"`
-	Name		string		`xml:"name,attr"`
-	Folders []Folder	`xml:"Folder"`
+	XMLName		xml.Name 	`xml:"EntityType"`
+	Name			string		`xml:"name,attr"`
+	Folders		[]Folder	`xml:"Folder"`
+	Entities	[]Entity	`xml:"Entity"`
 }
 
 type Folder struct {
@@ -112,11 +113,20 @@ func createSubfolders(parent *Folder, dirs *map[string]string, parentPath string
 }
 
 // FindEntityDir searches for entity ID in EntityType and returns its directory.
-func FindEntityDir(et *EntityType, dirs *map[string]string, id string) (*Entity, string) {
+func FindEntityDir(et *EntityType, dirs *map[string]string, id string, rootDir string) (*Entity, string) {
 	var entity *Entity 
 	dir := ""
+	// top-level entities
+	for _, ent := range (*et).Entities {
+		if ent.Id == id {
+			entity = &ent
+			dir = rootDir
+			return entity, dir
+		}
+	}
+
 	for _, folder := range et.Folders {
-		// top-level entities
+		// first-level folder entities
 		for _, ent := range folder.Entities {
 			if ent.Id == id {
 				entity = &ent

@@ -205,7 +205,7 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 		return false
 	}
 
-	err = jbscript.CreateScripts(scripts, &scriptDirs, envPath)
+	err = jbscript.CreateScripts(scripts, &scriptDirs, envPath, targetPath)
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false

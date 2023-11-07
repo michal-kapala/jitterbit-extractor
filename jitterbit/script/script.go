@@ -9,9 +9,10 @@ import (
 )
 
 // CreateScripts creates .jb source code files.
-func CreateScripts(scripts *project.EntityType, dirs *map[string]string, envPath string) error {
-	scriptsPath := fmt.Sprintf("%s\\Data\\Script", envPath)
-	entries, err := os.ReadDir(scriptsPath)
+func CreateScripts(scripts *project.EntityType, dirs *map[string]string, envPath string, targetPath string) error {
+	inPath := fmt.Sprintf("%s\\Data\\Script", envPath)
+	outPath := fmt.Sprintf("%s\\Script", targetPath)
+	entries, err := os.ReadDir(inPath)
 	if err != nil {
 		return err
 	}
@@ -21,7 +22,7 @@ func CreateScripts(scripts *project.EntityType, dirs *map[string]string, envPath
 	for _, entry := range entries {
 		entryName = entry.Name()
 		if !entry.IsDir() && strings.Contains(entryName, ".xml"){
-			inFilePath = fmt.Sprintf("%s\\%s", scriptsPath, entryName)
+			inFilePath = fmt.Sprintf("%s\\%s", inPath, entryName)
 			inFile, err := os.Open(inFilePath)
 			if err != nil {
 				return err
@@ -33,7 +34,7 @@ func CreateScripts(scripts *project.EntityType, dirs *map[string]string, envPath
 				return err
 			}
 			
-			ent, scriptDir := project.FindEntityDir(scripts, dirs, script.Header.Id)
+			ent, scriptDir := project.FindEntityDir(scripts, dirs, script.Header.Id, outPath)
 
 			// script was not found in project.xml
 			if ent == nil || scriptDir == "" {
