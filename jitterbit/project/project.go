@@ -38,8 +38,8 @@ type Entity struct {
 }
 
 // ParseProject reads project.xml file with the project structure.
-func ParseProject(envPath string) (*Project, error) {
-	projectFile, err := os.Open(fmt.Sprintf("%s\\project.xml", envPath))
+func ParseProject(envPath string, sep string) (*Project, error) {
+	projectFile, err := os.Open(fmt.Sprintf("%s%sproject.xml", envPath, sep))
 	if err != nil {
 		return nil, err
 	}
@@ -68,22 +68,22 @@ func GetEntityType(project *Project, name string) *EntityType {
 }
 
 // CreateDirs performs DFS creation of ID-named directories.
-func CreateDirs(et *EntityType, dirs *map[string]string, path string) error {
+func CreateDirs(et *EntityType, dirs *map[string]string, path string, sep string) error {
 	// scripts
-	scriptPath := fmt.Sprintf("%s\\Script", path)
+	scriptPath := fmt.Sprintf("%s%sScript", path, sep)
 	if err := os.Mkdir(scriptPath, os.ModePerm); err != nil {
 		return err
 	}
 
 	for _, folder := range et.Folders {
 		// save and create top folders
-		folderPath := fmt.Sprintf("%s\\%s", scriptPath, folder.Name)
+		folderPath := fmt.Sprintf("%s%s%s", scriptPath, sep, folder.Name)
 		(*dirs)[folder.Name] = folderPath
 		if err := os.Mkdir(folderPath, os.ModePerm); err != nil {
 			return err
 		}
 		// save and create subdirectories recursively
-		err := createSubfolders(&folder, dirs, folderPath)
+		err := createSubfolders(&folder, dirs, folderPath, sep)
 		if err != nil {
 			return err
 		}
@@ -93,16 +93,16 @@ func CreateDirs(et *EntityType, dirs *map[string]string, path string) error {
 }
 
 // createSubfolders recursively creates a folder's subdirectories and their subdirectories.
-func createSubfolders(parent *Folder, dirs *map[string]string, parentPath string) error {
+func createSubfolders(parent *Folder, dirs *map[string]string, parentPath string, sep string) error {
 	for _, folder := range (*parent).Subfolders {
-		folderPath := fmt.Sprintf("%s\\%s", parentPath, folder.Name)
+		folderPath := fmt.Sprintf("%s%s%s", parentPath, sep, folder.Name)
 		(*dirs)[folder.Name] = folderPath
 		if err := os.Mkdir(folderPath, os.ModePerm); err != nil {
 			return err
 		}
 		// save and create subdirectories recursively
 		if len(folder.Subfolders) > 0 {
-			err := createSubfolders(&folder, dirs, folderPath)
+			err := createSubfolders(&folder, dirs, folderPath, sep)
 			if err != nil {
 				return err
 			}

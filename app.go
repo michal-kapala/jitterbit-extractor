@@ -15,18 +15,39 @@ import (
 
 // App struct
 type App struct {
+	// Application context.
 	ctx context.Context
+	// Operating system.
+	os string
+	// Platform-based path separator character.
+	pathSep string
+	// Platform-based End-Of-Line character(s).
+	eol string
 }
 
 // NewApp creates a new App application struct
-func NewApp() *App {
-	return &App{}
+func NewApp(os string) *App {
+	sep := ""
+	eol := ""
+	if os == "windows" {
+		sep = "\\"
+		eol = "\r\n"
+	} else {
+		sep = "/"
+		eol = "\n"
+	}
+	return &App{
+		os: os,
+		pathSep: sep,
+		eol: eol,
+	}
 }
 
 // startup is called at application startup
 func (a *App) startup(ctx context.Context) {
 	// Perform your setup here
 	a.ctx = ctx
+	runtime.LogPrintf(a.ctx, "OS: %s", a.os)
 	runtime.WindowMaximise(a.ctx)
 }
 
@@ -59,7 +80,7 @@ func (a *App) SelectProject() string {
 	}
 
 	// validate project dir
-	file, err := os.Open(fmt.Sprintf("%s\\manifest.jip", directory))
+	file, err := os.Open(fmt.Sprintf("%s%smanifest.jip", directory, a.pathSep))
 
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
@@ -114,7 +135,7 @@ func (a *App) GetEnvs(project string) []string {
 // Extract performs convertions from Jitterbit Studio format to a more readable project structure.
 func (a *App) Extract(projectPath string, env string, output string) bool {
 	// get project name
-	manifest, err := os.Open(fmt.Sprintf("%s\\manifest.jip", projectPath))
+	manifest, err := os.Open(fmt.Sprintf("%s%smanifest.jip", projectPath, a.pathSep))
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false
@@ -126,7 +147,7 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	manifestContent := ""
 	for scanner.Scan() {
 		line := scanner.Text()
-		manifestContent += fmt.Sprintf("%s\r\n", line)
+		manifestContent += fmt.Sprintf("%s%s", line, a.eol)
 		if strings.Contains(line, "project-name=") {
 			projectName = strings.Replace(line, "project-name=", "", 1)
 		}
@@ -139,7 +160,7 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	}
 
 	// get environment name
-	envPath := fmt.Sprintf("%s\\%s\\environment.properties", projectPath, env)
+	envPath := fmt.Sprintf("%s%s%s%senvironment.properties", projectPath, a.pathSep, env, a.pathSep)
 	envProps, err := os.Open(envPath)
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
@@ -152,7 +173,7 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	envPropsContent := ""
 	for scanner.Scan() {
 		line := scanner.Text()
-		envPropsContent += fmt.Sprintf("%s\r\n", line)
+		envPropsContent += fmt.Sprintf("%s%s", line, a.eol)
 		if strings.Contains(line, "environment-name=") {
 			envName = strings.Replace(line, "environment-name=", "", 1)
 		}
@@ -165,14 +186,14 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	}
 
 	targetDirName := fmt.Sprintf("%s %s", projectName, envName)
-	targetPath := fmt.Sprintf("%s\\%s", output, targetDirName)
+	targetPath := fmt.Sprintf("%s%s%s", output, a.pathSep, targetDirName)
 	if err := os.Mkdir(targetPath, os.ModePerm); err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false
 	}
 
 	// copy metadata
-	manifestCopy, err := os.Create(fmt.Sprintf("%s\\project.properties", targetPath))
+	manifestCopy, err := os.Create(fmt.Sprintf("%s%sproject.properties", targetPath, a.pathSep))
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false
@@ -180,7 +201,7 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	defer manifestCopy.Close()
 	manifestCopy.WriteString(manifestContent)
 
-	envPropsCopy, err := os.Create(fmt.Sprintf("%s\\environment.properties", targetPath))
+	envPropsCopy, err := os.Create(fmt.Sprintf("%s%senvironment.properties", targetPath, a.pathSep))
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false
@@ -188,8 +209,8 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	defer envPropsCopy.Close()
 	envPropsCopy.WriteString(envPropsContent)
 
-	envPath = fmt.Sprintf("%s\\%s", projectPath, env)
-	project, err := jbproj.ParseProject(envPath)
+	envPath = fmt.Sprintf("%s%s%s", projectPath, a.pathSep, env)
+	project, err := jbproj.ParseProject(envPath, a.pathSep)
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false
@@ -199,13 +220,13 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	scripts := jbproj.GetEntityType(project, "Script")
 	scriptDirs := make(map[string]string)
 
-	err = jbproj.CreateDirs(scripts, &scriptDirs, targetPath)
+	err = jbproj.CreateDirs(scripts, &scriptDirs, targetPath, a.pathSep)
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false
 	}
 
-	err = jbscript.CreateScripts(scripts, &scriptDirs, envPath, targetPath)
+	err = jbscript.CreateScripts(scripts, &scriptDirs, envPath, targetPath, a.pathSep)
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false

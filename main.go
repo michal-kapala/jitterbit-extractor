@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log"
+	"runtime"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/logger"
@@ -15,7 +16,7 @@ var assets embed.FS
 
 func main() {
 	// Create an instance of the app structure
-	app := NewApp()
+	app := NewApp(runtime.GOOS)
 
 	// Create application with options
 	err := wails.Run(&options.App{

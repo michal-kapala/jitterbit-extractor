@@ -9,9 +9,9 @@ import (
 )
 
 // CreateScripts creates .jb source code files.
-func CreateScripts(scripts *project.EntityType, dirs *map[string]string, envPath string, targetPath string) error {
-	inPath := fmt.Sprintf("%s\\Data\\Script", envPath)
-	outPath := fmt.Sprintf("%s\\Script", targetPath)
+func CreateScripts(scripts *project.EntityType, dirs *map[string]string, envPath string, targetPath string, sep string) error {
+	inPath := fmt.Sprintf("%s%sData%sScript", envPath, sep, sep)
+	outPath := fmt.Sprintf("%s%sScript", targetPath, sep)
 	entries, err := os.ReadDir(inPath)
 	if err != nil {
 		return err
@@ -22,7 +22,7 @@ func CreateScripts(scripts *project.EntityType, dirs *map[string]string, envPath
 	for _, entry := range entries {
 		entryName = entry.Name()
 		if !entry.IsDir() && strings.Contains(entryName, ".xml"){
-			inFilePath = fmt.Sprintf("%s\\%s", inPath, entryName)
+			inFilePath = fmt.Sprintf("%s%s%s", inPath, sep, entryName)
 			inFile, err := os.Open(inFilePath)
 			if err != nil {
 				return err
@@ -43,7 +43,7 @@ func CreateScripts(scripts *project.EntityType, dirs *map[string]string, envPath
 			// example script name from Jitterbit's demo project:
 			// jb.sqlServer.table1-&gt;table2 [ETL_log]
 			saneName := sanitizeScriptName(script.Header.Name)
-			outFilePath := fmt.Sprintf("%s\\%s.jb", scriptDir, saneName)
+			outFilePath := fmt.Sprintf("%s%s%s.jb", scriptDir, sep, saneName)
 			outFile, err := os.Create(outFilePath)
 			if err != nil {
 				return err
