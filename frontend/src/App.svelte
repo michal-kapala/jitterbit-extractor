@@ -39,8 +39,6 @@
 <main class="flex flex-row p-4 bg-gradient-to-br from-[#0f0225]/[.95] via-[#6020d6] to-[#ffaf44] text-gray-300 justify-center items-center">
   <div class="flex flex-row w-full py-64 justify-center items-center"> 
 
-    <img src={logo} alt="Jitterbit Logo" class="m-6"/>
-
     <div class="flex flex-col ml-6 my-4 w-1/2">
       <div class="my-2">
         <p class="bold py-2 text-bold text-xl">Jitterbit project</p>
@@ -96,10 +94,5 @@
   main {
     padding: 1em;
     margin: 0 auto;
-  }
-
-  img {
-    height: 16rem;
-    width: 16rem;
   }
 </style>

@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	jbproj "jbextractor/jitterbit/project"
+	jbscript "jbextractor/jitterbit/script"
 	"os"
 	"path/filepath"
 	"strings"
-	jbproj "jbextractor/jitterbit/project"
-	jbscript "jbextractor/jitterbit/script"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -188,8 +189,11 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	targetDirName := fmt.Sprintf("%s %s", projectName, envName)
 	targetPath := fmt.Sprintf("%s%s%s", output, a.pathSep, targetDirName)
 	if err := os.Mkdir(targetPath, os.ModePerm); err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
-		return false
+		targetPath += fmt.Sprintf(" %s", getDate())
+		if err := os.Mkdir(targetPath, os.ModePerm); err != nil {
+			runtime.LogPrint(a.ctx, err.Error())
+			return false
+		}
 	}
 
 	// copy metadata
@@ -233,4 +237,14 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	}
 	
 	return true
+}
+
+// getDate returns a custom time suffix for files and directories.
+func getDate() string {
+	date := time.Now().Format("2006-01-02 15:04:05")
+	replacer := strings.NewReplacer(
+		"-", "",
+		" ", "_",
+		":", "")
+	return replacer.Replace(date)
 }
