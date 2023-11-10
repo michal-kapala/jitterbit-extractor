@@ -235,6 +235,12 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false
 	}
+
+	err = jbproj.RenameDirs(scripts, &scriptDirs, targetPath)
+	if err != nil {
+		runtime.LogPrint(a.ctx, err.Error())
+		return false
+	}
 	
 	return true
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"golang.org/x/exp/slices"
 )
@@ -77,8 +78,8 @@ func CreateDirs(et *EntityType, dirs *map[string]string, path string, sep string
 
 	for _, folder := range et.Folders {
 		// save and create top folders
-		folderPath := fmt.Sprintf("%s%s%s", scriptPath, sep, folder.Name)
-		(*dirs)[folder.Name] = folderPath
+		folderPath := fmt.Sprintf("%s%s%s", scriptPath, sep, folder.Id)
+		(*dirs)[folder.Id] = folderPath
 		if err := os.Mkdir(folderPath, os.ModePerm); err != nil {
 			return err
 		}
@@ -95,8 +96,8 @@ func CreateDirs(et *EntityType, dirs *map[string]string, path string, sep string
 // createSubfolders recursively creates a folder's subdirectories and their subdirectories.
 func createSubfolders(parent *Folder, dirs *map[string]string, parentPath string, sep string) error {
 	for _, folder := range (*parent).Subfolders {
-		folderPath := fmt.Sprintf("%s%s%s", parentPath, sep, folder.Name)
-		(*dirs)[folder.Name] = folderPath
+		folderPath := fmt.Sprintf("%s%s%s", parentPath, sep, folder.Id)
+		(*dirs)[folder.Id] = folderPath
 		if err := os.Mkdir(folderPath, os.ModePerm); err != nil {
 			return err
 		}
@@ -130,7 +131,7 @@ func FindEntityDir(et *EntityType, dirs *map[string]string, id string, rootDir s
 		for _, ent := range folder.Entities {
 			if ent.Id == id {
 				entity = &ent
-				dir = (*dirs)[folder.Name]
+				dir = (*dirs)[folder.Id]
 				return entity, dir
 			}
 		}
@@ -154,7 +155,7 @@ func findSubfolderEntityDir(parent *Folder, dirs *map[string]string, id string) 
 		for _, ent := range folder.Entities {
 			if ent.Id == id {
 				entity = &ent
-				dir = (*dirs)[folder.Name]
+				dir = (*dirs)[folder.Id]
 				return entity, dir
 			}
 		}
@@ -166,4 +167,53 @@ func findSubfolderEntityDir(parent *Folder, dirs *map[string]string, id string) 
 	}
 	// not found
 	return nil, ""
+}
+
+// RenameDirs substitutes folder IDs with real names.
+func RenameDirs(et *EntityType, dirs *map[string]string, path string) error {
+	oldPath := ""
+	newPath := ""
+	for _, folder := range et.Folders {
+		oldPath = (*dirs)[folder.Id]
+		newPath = strings.Replace(oldPath, folder.Id, folder.Name, 1)
+		err := os.Rename(oldPath, newPath)
+		if err != nil {
+			return err
+		}
+		// update map
+		updateDirPaths(dirs, folder.Id, folder.Name)
+		err = renameDirs(&folder, dirs, newPath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// renameDirs substitutes subfolder IDs with real names.
+func renameDirs(parent *Folder, dirs *map[string]string, path string) error {
+	oldPath := ""
+	newPath := ""
+	for _, folder := range parent.Subfolders {
+		oldPath = (*dirs)[folder.Id]
+		newPath = strings.Replace(oldPath, folder.Id, folder.Name, 1)
+		err := os.Rename(oldPath, newPath)
+		if err != nil {
+			return err
+		}
+		// update map
+		updateDirPaths(dirs, folder.Id, folder.Name)
+		err = renameDirs(&folder, dirs, newPath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// updateDirPaths updates all paths with a restored directory name.
+func updateDirPaths(dirs *map[string]string, id string, name string) {
+	for dirId, path := range *dirs {
+		(*dirs)[dirId] = strings.Replace(path, id, name, 1)
+	}
 }

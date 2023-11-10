@@ -1,6 +1,4 @@
 <script>
-  import logo from './assets/jitterbit.png'  
-
   let EMPTY_ENVS = ['None']
 
   let project = "";
