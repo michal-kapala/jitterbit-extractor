@@ -10,11 +10,14 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+// The project structure saved in project.xml file.
 type Project struct {
-	XMLName			xml.Name			`xml:"Project"`
-	Id					string				`xml:"projectId,attr"`
-	Name				string				`xml:"name,attr"`
-	EntityTypes	[]EntityType 	`xml:"EntityType"`
+	XMLName     xml.Name     `xml:"Project"`
+	Id          string       `xml:"projectId,attr"`
+	Name        string       `xml:"name,attr"`
+	EntityTypes []EntityType `xml:"EntityType"`
+	// Environment path.
+	EnvPath string
 }
 
 // ParseProject reads project.xml file with the project structure.
@@ -32,19 +35,25 @@ func ParseProject(envPath string, sep string) (*Project, error) {
 	}
 
 	var project Project
-
 	err = xml.Unmarshal(bytes, &project)
 	if err != nil {
 		return nil, err
 	}
 
+	for idx := range project.EntityTypes {
+		project.EntityTypes[idx].Dirs = make(map[string]string)
+	}
+	
+	project.EnvPath = envPath
 	return &project, nil
 }
 
 // GetEntityType returns a specified EntityType.
 func (project *Project) GetEntityType(name string) *EntityType {
-	scriptIdx := slices.IndexFunc(project.EntityTypes, func(et EntityType) bool { return et.Name == name} )
-	return &project.EntityTypes[scriptIdx]
+	scriptIdx := slices.IndexFunc(project.EntityTypes, func(et EntityType) bool { return et.Name == name })
+	et := &project.EntityTypes[scriptIdx]
+	et.Type = name
+	return et
 }
 
 // updateDirPaths updates all paths with a restored directory name.

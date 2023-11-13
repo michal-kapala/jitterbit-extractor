@@ -7,6 +7,7 @@ import (
 	jbproj "jbextractor/jitterbit/project"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -37,9 +38,9 @@ func NewApp(os string) *App {
 		eol = "\n"
 	}
 	return &App{
-		os: os,
+		os:      os,
 		pathSep: sep,
-		eol: eol,
+		eol:     eol,
 	}
 }
 
@@ -70,12 +71,12 @@ func (a *App) SelectProject() string {
 	directory, err := runtime.OpenDirectoryDialog(a.ctx, options)
 
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
+		a.logError(err)
 		return ""
 	}
 
 	if directory == "" {
-		runtime.LogPrint(a.ctx, "[SelectProject] User cancelled choosing a directory")
+		a.logWarning("[SelectProject] User cancelled choosing a directory")
 		return directory
 	}
 
@@ -83,7 +84,7 @@ func (a *App) SelectProject() string {
 	file, err := os.Open(fmt.Sprintf("%s%smanifest.jip", directory, a.pathSep))
 
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
+		a.logError(err)
 		return ""
 	}
 
@@ -101,7 +102,7 @@ func (a *App) SelectOutput() string {
 	directory, err := runtime.OpenDirectoryDialog(a.ctx, options)
 
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
+		a.logError(err)
 		return ""
 	}
 
@@ -111,14 +112,14 @@ func (a *App) SelectOutput() string {
 // GetEnvs returns the available local environments.
 func (a *App) GetEnvs(project string) []string {
 	if project == "" {
-		runtime.LogPrint(a.ctx, "[GetEnvs] Empty project path")
+		a.logWarning("[GetEnvs] Empty project path")
 		return nil
 	}
 
 	files, err := os.ReadDir(project)
 
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
+		a.logError(err)
 		return nil
 	}
 
@@ -136,39 +137,64 @@ func (a *App) GetEnvs(project string) []string {
 func (a *App) Extract(projectPath string, env string, output string) bool {
 	targetPath, err := a.copyMetadata(projectPath, env, output)
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
+		a.logError(err)
 		return false
 	}
 
 	envPath := fmt.Sprintf("%s%s%s", projectPath, a.pathSep, env)
 	project, err := jbproj.ParseProject(envPath, a.pathSep)
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
+		a.logError(err)
+		return false
+	}
+
+	// Operations
+	ops := project.GetEntityType(jbproj.OPERATION)
+	err = ops.CreateDirs(targetPath, a.pathSep)
+	if err != nil {
+		a.logError(err)
+		return false
+	}
+
+	err = ops.CreateOperations(envPath, targetPath, a.pathSep)
+	if err != nil {
+		a.logError(err)
+		return false
+	}
+
+	err = ops.RenameDirs(targetPath)
+	if err != nil {
+		a.logError(err)
 		return false
 	}
 
 	// Scripts
-	scripts := project.GetEntityType("Script")
-	scriptDirs := make(map[string]string)
+	scripts := project.GetEntityType(jbproj.SCRIPT)
 
-	err = scripts.CreateDirs(&scriptDirs, targetPath, a.pathSep)
+	err = scripts.CreateDirs(targetPath, a.pathSep)
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
+		a.logError(err)
 		return false
 	}
 
-	err = scripts.CreateScripts(&scriptDirs, envPath, targetPath, a.pathSep)
+	err = scripts.CreateScripts(envPath, targetPath, a.pathSep)
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
+		a.logError(err)
 		return false
 	}
 
-	err = scripts.RenameDirs(&scriptDirs, targetPath)
+	err = scripts.RenameDirs(targetPath)
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
+		a.logError(err)
 		return false
 	}
-	
+
+	err = a.resolveScripts(project, targetPath)
+	if err != nil {
+		a.logError(err)
+		return false
+	}
+
 	return true
 }
 
@@ -194,7 +220,7 @@ func (a *App) copyMetadata(projectPath string, env string, output string) (strin
 
 	// corrupted manifest, use dir name instead
 	if projectName == "" {
-		runtime.LogPrint(a.ctx, "[Extract] Corrupted manifest.jip")
+		a.logWarning("[Extract] Corrupted manifest.jip")
 		projectName = filepath.Base(filepath.Dir(projectPath))
 	}
 
@@ -256,4 +282,92 @@ func getDate() string {
 		" ", "_",
 		":", "")
 	return replacer.Replace(date)
+}
+
+func (a *App) resolveScripts(project *jbproj.Project, rootPath string) error {
+	scripts := project.GetEntityType(jbproj.SCRIPT)
+	ops := project.GetEntityType(jbproj.OPERATION)
+
+	return filepath.WalkDir(rootPath,
+		func(path string, d os.DirEntry, err error) error {
+			if !d.IsDir() {
+				data, err := os.ReadFile(path)
+				if err != nil {
+					return err
+				}
+
+				script := string(data)
+				// RunScript
+				regex := regexp.MustCompile(`RunScript\(\"sc\.([0-9a-f]{8}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{12})\".*`)
+				matches := regex.FindAllStringSubmatch(script, -1)
+				for _, m := range matches {
+					ent, dir := scripts.FindEntity(m[1], fmt.Sprintf("%s%sData%s%s", project.EnvPath, a.pathSep, a.pathSep, scripts.Type))
+					if ent == nil || dir == "" {
+						a.logWarning(fmt.Sprintf("[ResolveScripts] Script %s could not be found", m[1]))
+						continue
+					}
+					cbPath := makeCallablePath(ent, dir, rootPath, scripts.Type, a.pathSep)
+					replacement := strings.Replace(m[0], fmt.Sprintf("sc.%s", m[1]), cbPath, 1)
+					script = strings.Replace(script, m[0], replacement, 1)
+				}
+
+				// RunOperation
+				regex = regexp.MustCompile(`RunOperation\(\"op\.([0-9a-f]{8}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{12})\".*`)
+				matches = regex.FindAllStringSubmatch(script, -1)
+				for _, m := range matches {
+					ent, dir := ops.FindEntity(m[1], fmt.Sprintf("%s%sData%s%s", project.EnvPath, a.pathSep, a.pathSep, ops.Type))
+					if ent == nil || dir == "" {
+						a.logWarning(fmt.Sprintf("[ResolveScripts] Operation %s could not be found", m[1]))
+						continue
+					}
+					cbPath := makeCallablePath(ent, dir, rootPath, ops.Type, a.pathSep)
+					replacement := strings.Replace(m[0], fmt.Sprintf("op.%s", m[1]), cbPath, 1)
+					script = strings.Replace(script, m[0], replacement, 1)
+				}
+
+				// JavaScript tags
+				regex = regexp.MustCompile(`^<javascript>\n(.|[\r|\n])*\n</javascript>\z`)
+				jsMatch := regex.FindStringSubmatch(script)
+
+				if jsMatch != nil {
+					jsMatch[0] = strings.TrimPrefix(jsMatch[0], "<javascript>\n")
+					script = strings.TrimSuffix(jsMatch[0], "\n</javascript>")
+					path = fmt.Sprintf("%s%s", strings.TrimSuffix(path, ".jb"), ".js")
+				}
+
+				file, err := os.Create(path)
+				if err != nil {
+					return err
+				}
+
+				_, err = file.WriteString(script)
+
+				if err != nil {
+					return err
+				}
+
+				err = file.Close()
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		},
+	)
+}
+
+func makeCallablePath(ent *jbproj.Entity, dir string, rootPath string, typeName string, sep string) string {
+	basePath := fmt.Sprintf("%s%s%s", rootPath, sep, typeName)
+	path := fmt.Sprintf("%s%s%s", dir, sep, ent.Name)
+	// diff the paths
+	path = strings.Replace(path, basePath, "", 1)
+	// truncate the first separator
+	path = strings.Replace(path, sep, "", 1)
+	// normalize separators
+	if sep == "\\" {
+		path = strings.Replace(path, sep, "/", -1)
+	}
+
+	return fmt.Sprintf("<TAG>%ss/%s</TAG>", typeName, path)
 }

@@ -20,9 +20,9 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "Jitterbit Extractor",
-		Width:  1920,
-		Height: 1080,
+		Title:             "Jitterbit Extractor",
+		Width:             1920,
+		Height:            1080,
 		DisableResize:     false,
 		Fullscreen:        false,
 		Frameless:         false,

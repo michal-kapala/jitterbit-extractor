@@ -7,12 +7,13 @@ import (
 	"strings"
 )
 
+// A virtual Jitterbit directory.
 type Folder struct {
-	XMLName			xml.Name 	`xml:"Folder"`
-	Id					string		`xml:"entityId,attr"`
-	Name				string		`xml:"name,attr"`
-	Subfolders	[]Folder	`xml:"Folder"`
-	Entities		[]Entity	`xml:"Entity"`
+	XMLName    xml.Name `xml:"Folder"`
+	Id         string   `xml:"entityId,attr"`
+	Name       string   `xml:"name,attr"`
+	Subfolders []Folder `xml:"Folder"`
+	Entities   []Entity `xml:"Entity"`
 }
 
 // createSubfolders recursively creates a folder's subdirectories and their subdirectories.
@@ -35,8 +36,8 @@ func (parent *Folder) createSubfolders(dirs *map[string]string, parentPath strin
 	return nil
 }
 
-// findSubfolderEntityDir recursively searches for entity ID in a folder and its subdirectories.
-func (parent *Folder) findSubfolderEntityDir(dirs *map[string]string, id string) (*Entity, string) {
+// findSubfolderEntity recursively searches for entity ID in the folder and its subdirectories.
+func (parent *Folder) findSubfolderEntity(dirs *map[string]string, id string) (*Entity, string) {
 	var entity *Entity
 	dir := ""
 	// subdirs
@@ -48,7 +49,7 @@ func (parent *Folder) findSubfolderEntityDir(dirs *map[string]string, id string)
 				return entity, dir
 			}
 		}
-		resultEnt, resultDir := folder.findSubfolderEntityDir(dirs, id)
+		resultEnt, resultDir := folder.findSubfolderEntity(dirs, id)
 		if resultDir == "" {
 			continue
 		}
