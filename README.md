@@ -1,6 +1,6 @@
 # Jitterbit Extractor
 
-A desktop app for Jitterbit script import from local project files made with [Wails](https://wails.io/) and [Svelte](https://github.com/BillBuilt/wails-vite-svelte-tailwind-template). Imports script code from selected environment into `.jb` files preserving the original directory structure.
+A desktop app for Jitterbit script import from local project files made with [Wails](https://wails.io/) and [Svelte](https://github.com/BillBuilt/wails-vite-svelte-tailwind-template). Imports script code from selected environment into `.jb`/`.js` files preserving the original directory structure.
 
 ![extractor](https://github.com/michal-kapala/jitterbit-extractor/assets/48450427/a06653f3-cc30-4150-bebf-07acb7d58a98)
 
