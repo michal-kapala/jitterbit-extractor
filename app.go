@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	jbproj "jbextractor/jitterbit/project"
-	jbscript "jbextractor/jitterbit/script"
 	"os"
 	"path/filepath"
 	"strings"
@@ -135,11 +134,50 @@ func (a *App) GetEnvs(project string) []string {
 
 // Extract performs convertions from Jitterbit Studio format to a more readable project structure.
 func (a *App) Extract(projectPath string, env string, output string) bool {
-	// get project name
-	manifest, err := os.Open(fmt.Sprintf("%s%smanifest.jip", projectPath, a.pathSep))
+	targetPath, err := a.copyMetadata(projectPath, env, output)
 	if err != nil {
 		runtime.LogPrint(a.ctx, err.Error())
 		return false
+	}
+
+	envPath := fmt.Sprintf("%s%s%s", projectPath, a.pathSep, env)
+	project, err := jbproj.ParseProject(envPath, a.pathSep)
+	if err != nil {
+		runtime.LogPrint(a.ctx, err.Error())
+		return false
+	}
+
+	// Scripts
+	scripts := project.GetEntityType("Script")
+	scriptDirs := make(map[string]string)
+
+	err = scripts.CreateDirs(&scriptDirs, targetPath, a.pathSep)
+	if err != nil {
+		runtime.LogPrint(a.ctx, err.Error())
+		return false
+	}
+
+	err = scripts.CreateScripts(&scriptDirs, envPath, targetPath, a.pathSep)
+	if err != nil {
+		runtime.LogPrint(a.ctx, err.Error())
+		return false
+	}
+
+	err = scripts.RenameDirs(&scriptDirs, targetPath)
+	if err != nil {
+		runtime.LogPrint(a.ctx, err.Error())
+		return false
+	}
+	
+	return true
+}
+
+// Copies over the project and environment metadata files.
+func (a *App) copyMetadata(projectPath string, env string, output string) (string, error) {
+	// get project name
+	manifest, err := os.Open(fmt.Sprintf("%s%smanifest.jip", projectPath, a.pathSep))
+	if err != nil {
+		return "", err
 	}
 	defer manifest.Close()
 
@@ -164,8 +202,7 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	envPath := fmt.Sprintf("%s%s%s%senvironment.properties", projectPath, a.pathSep, env, a.pathSep)
 	envProps, err := os.Open(envPath)
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
-		return false
+		return "", err
 	}
 	defer envProps.Close()
 
@@ -191,58 +228,24 @@ func (a *App) Extract(projectPath string, env string, output string) bool {
 	if err := os.Mkdir(targetPath, os.ModePerm); err != nil {
 		targetPath += fmt.Sprintf(" %s", getDate())
 		if err := os.Mkdir(targetPath, os.ModePerm); err != nil {
-			runtime.LogPrint(a.ctx, err.Error())
-			return false
+			return targetPath, err
 		}
 	}
 
-	// copy metadata
 	manifestCopy, err := os.Create(fmt.Sprintf("%s%sproject.properties", targetPath, a.pathSep))
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
-		return false
+		return targetPath, err
 	}
 	defer manifestCopy.Close()
 	manifestCopy.WriteString(manifestContent)
 
 	envPropsCopy, err := os.Create(fmt.Sprintf("%s%senvironment.properties", targetPath, a.pathSep))
 	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
-		return false
+		return targetPath, err
 	}
 	defer envPropsCopy.Close()
 	envPropsCopy.WriteString(envPropsContent)
-
-	envPath = fmt.Sprintf("%s%s%s", projectPath, a.pathSep, env)
-	project, err := jbproj.ParseProject(envPath, a.pathSep)
-	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
-		return false
-	}
-
-	// Scripts
-	scripts := jbproj.GetEntityType(project, "Script")
-	scriptDirs := make(map[string]string)
-
-	err = jbproj.CreateDirs(scripts, &scriptDirs, targetPath, a.pathSep)
-	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
-		return false
-	}
-
-	err = jbscript.CreateScripts(scripts, &scriptDirs, envPath, targetPath, a.pathSep)
-	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
-		return false
-	}
-
-	err = jbproj.RenameDirs(scripts, &scriptDirs, targetPath)
-	if err != nil {
-		runtime.LogPrint(a.ctx, err.Error())
-		return false
-	}
-	
-	return true
+	return targetPath, nil
 }
 
 // getDate returns a custom time suffix for files and directories.

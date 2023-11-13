@@ -14,29 +14,6 @@ type Entity struct {
 	KongaString	string			`xml:"konga.string"`
 }
 
-type Header struct {
-	XMLName			xml.Name	`xml:"Header"`
-	Deleted			bool			`xml:"Deleted,attr"`
-	DeployDirty	bool			`xml:"DeployDirty,attr"`
-	Deployed		bool			`xml:"Deployed,attr"`
-	HasMoved		bool			`xml:"HasMoved,attr"`
-	Id					string		`xml:"ID,attr"`
-	Name				string		`xml:"Name,attr"`
-	KongaString	string		`xml:"konga.string"`
-}
-
-type Properties struct {
-	XMLName	xml.Name	`xml:"Properties"`
-	Items		[]Item		`xml:"Item"`
-}
-
-type Item struct {
-	XMLName	xml.Name	`xml:"Item"`
-	Key			string		`xml:"key,attr"`
-	Value		string		`xml:"value,attr"`
-	Enc			bool			`xml:"enc,attr"`
-}
-
 func ParseEntity(filePath string) (*Entity, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
