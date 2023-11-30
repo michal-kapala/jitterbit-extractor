@@ -123,7 +123,7 @@ func (et *EntityType) RenameDirs(path string) error {
 	newPath := ""
 	for _, folder := range et.Folders {
 		oldPath = et.Dirs[folder.Id]
-		newPath = strings.Replace(oldPath, folder.Id, folder.Name, 1)
+		newPath = strings.Replace(oldPath, folder.Id, sanitizeFileName(folder.Name), 1)
 		err := os.Rename(oldPath, newPath)
 		if err != nil {
 			return err
@@ -182,21 +182,6 @@ func (scripts *EntityType) CreateScripts(envPath string, targetPath string, sep 
 	}
 
 	return nil
-}
-
-// sanitizeFileName cleanses the entity names of special characters disallowed by file systems.
-func sanitizeFileName(name string) string {
-	replacer := strings.NewReplacer(
-		"<", "_",
-		">", "_",
-		"/", "_",
-		"\\", "_",
-		"?", "_",
-		":", "_",
-		"*", "_",
-		"|", "_",
-		"\"", "_")
-	return replacer.Replace(name)
 }
 
 // Copies operation definitions in XML format.

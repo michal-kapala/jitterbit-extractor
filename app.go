@@ -330,6 +330,10 @@ func (a *App) resolveScripts(project *jbproj.Project, rootPath string) error {
 				jsMatch := regex.FindStringSubmatch(script)
 
 				if jsMatch != nil {
+					err = os.Remove(path)
+					if err != nil {
+						return err
+					}
 					jsMatch[0] = strings.TrimPrefix(jsMatch[0], "<javascript>\n")
 					script = strings.TrimSuffix(jsMatch[0], "\n</javascript>")
 					path = fmt.Sprintf("%s%s", strings.TrimSuffix(path, ".jb"), ".js")

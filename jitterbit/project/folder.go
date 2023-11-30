@@ -65,7 +65,7 @@ func (parent *Folder) renameDirs(dirs *map[string]string, path string) error {
 	newPath := ""
 	for _, folder := range parent.Subfolders {
 		oldPath = (*dirs)[folder.Id]
-		newPath = strings.Replace(oldPath, folder.Id, folder.Name, 1)
+		newPath = strings.Replace(oldPath, folder.Id, sanitizeFileName(folder.Name), 1)
 		err := os.Rename(oldPath, newPath)
 		if err != nil {
 			return err

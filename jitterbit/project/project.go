@@ -43,7 +43,7 @@ func ParseProject(envPath string, sep string) (*Project, error) {
 	for idx := range project.EntityTypes {
 		project.EntityTypes[idx].Dirs = make(map[string]string)
 	}
-	
+
 	project.EnvPath = envPath
 	return &project, nil
 }
